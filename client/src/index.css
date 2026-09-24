@@ -1,0 +1,140 @@
+:root {
+  --bg: #05070d;
+  --bg-elevated: #0d1220;
+  --bg-card: #0a0e1a;
+  --text: #b7c0d1;
+  --text-h: #f5f7fa;
+  --text-dim: #6b7387;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent: #ff9d4d;
+  --accent-2: #4f8cff;
+  --accent-bg: rgba(255, 157, 77, 0.12);
+  --accent-border: rgba(255, 157, 77, 0.45);
+  --danger: #ff6b6b;
+  --success: #4ade80;
+  --shadow: rgba(0, 0, 0, 0.5) 0 10px 30px -5px;
+  --scroll-thumb: rgba(255, 255, 255, 0.15);
+  --scroll-thumb-hover: rgba(255, 255, 255, 0.25);
+  --shimmer-highlight: rgba(255, 255, 255, 0.07);
+
+  --sans: 'Segoe UI', system-ui, Roboto, sans-serif;
+  --heading: 'Segoe UI', system-ui, Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 16px/145% var(--sans);
+  letter-spacing: 0.18px;
+  color-scheme: dark;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme='light'] {
+  --bg: #f4f5f8;
+  --bg-elevated: #ffffff;
+  --bg-card: #ffffff;
+  --text: #4b5566;
+  --text-h: #12151c;
+  --text-dim: #737b8c;
+  --border: rgba(15, 23, 42, 0.1);
+  --accent: #ff9d4d;
+  --accent-2: #2f6fe0;
+  --accent-bg: rgba(255, 157, 77, 0.15);
+  --accent-border: rgba(255, 157, 77, 0.5);
+  --danger: #d9363e;
+  --success: #16a34a;
+  --shadow: rgba(15, 23, 42, 0.12) 0 10px 30px -5px;
+  --scroll-thumb: rgba(15, 23, 42, 0.18);
+  --scroll-thumb-hover: rgba(15, 23, 42, 0.28);
+  --shimmer-highlight: rgba(15, 23, 42, 0.06);
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255, 157, 77, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(79, 140, 255, 0.08), transparent),
+    var(--bg);
+}
+
+#root {
+  width: 100%;
+  max-width: 1280px;
+  height: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 24px;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  html,
+  body,
+  #root {
+    height: auto;
+    overflow: visible;
+  }
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--heading);
+  font-weight: 600;
+  color: var(--text-h);
+  letter-spacing: 0.4px;
+}
+
+h1 {
+  font-size: 28px;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  margin: 0;
+}
+
+h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin: 0 0 16px;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+}
+
+button {
+  font-family: var(--sans);
+  cursor: pointer;
+}
+
+input,
+select {
+  font-family: var(--sans);
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 135%;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-h);
+}

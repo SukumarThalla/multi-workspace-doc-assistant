@@ -374,7 +374,9 @@ select:focus {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(5, 7, 13, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -388,9 +390,29 @@ select:focus {
   max-width: 380px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 18px;
   box-shadow: var(--shadow);
-  padding: 24px;
+  padding: 30px 28px;
+}
+
+.modal-centered {
+  text-align: center;
+}
+
+.modal-icon {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.modal-centered .field {
+  text-align: left;
 }
 
 .modal-wide {

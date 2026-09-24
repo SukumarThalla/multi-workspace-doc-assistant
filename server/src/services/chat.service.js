@@ -26,6 +26,23 @@ Format every answer for readability:
 
 const MAX_CHAINED_TOOL_CALLS = 5;
 
+// Relying on the system prompt alone to make the model treat "hi" as small talk instead of
+// a document question turned out not to be reliable — it would still retrieve chunks, see an
+// (empty-ish) <retrieved_context>, and default to "I don't know". Short-circuiting greetings
+// before they ever reach retrieval/grounding is deterministic instead of hoping the model
+// weighs the right instruction.
+const GREETING_PATTERN =
+  /^(hi+|hello+|hey+|heya|yo|sup|greetings|good\s?(morning|afternoon|evening|night)|thanks?( you)?|thx|ty|bye|goodbye|see\s?ya|how'?s it going|how are you( doing)?|what'?s up)[\s!.,?]*$/i;
+
+function isGreeting(message) {
+  return GREETING_PATTERN.test(message.trim());
+}
+
+const GREETING_SYSTEM_PROMPT = `You are a friendly assistant for a document Q&A app. The user just
+sent a greeting or brief small talk, not a question about their documents. Reply naturally and
+warmly in one short sentence — never say "I don't know". You can briefly mention you're ready to
+answer questions about their uploaded documents.`;
+
 function buildContextBlock(chunks) {
   const body = chunks.map((c) => `[from ${c.filename}]\n${c.content}`).join('\n\n');
   return `<retrieved_context>\n${body}\n</retrieved_context>`;
@@ -75,6 +92,36 @@ async function logToolCall(workspaceId, toolName, args, result, status) {
 //   { type: 'done' }
 export async function* sendMessageStream(workspaceId, message, model = DEFAULT_MODEL) {
   await saveMessage(workspaceId, 'user', message);
+
+  if (isGreeting(message)) {
+    yield { type: 'citations', citations: [] };
+    const contents = [{ role: 'user', parts: [{ text: message }] }];
+    let greetingText = '';
+
+    try {
+      for await (const event of streamGenerateContent({ model, systemInstruction: GREETING_SYSTEM_PROMPT, contents })) {
+        if (event.type === 'text') {
+          greetingText += event.text;
+          yield { type: 'delta', text: event.text };
+        }
+      }
+    } catch (err) {
+      if (err instanceof QuotaExceededError) {
+        yield {
+          type: 'quota_exceeded',
+          model: err.model,
+          resetsAt: err.resetsAt,
+          availableModels: AVAILABLE_MODELS.filter((m) => m !== err.model),
+        };
+        return;
+      }
+      throw err;
+    }
+
+    await saveMessage(workspaceId, 'assistant', greetingText, []);
+    yield { type: 'done' };
+    return;
+  }
 
   const chunks = await retrieveChunks(workspaceId, message);
   const citations = dedupeCitations(chunks);

@@ -19,7 +19,14 @@ export default function Login() {
         const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
         if (authError) throw authError;
       } else {
-        const { data, error: authError } = await supabase.auth.signUp({ email, password });
+        // Explicit redirect target so the confirmation link always points back to
+        // wherever this signup actually happened, instead of Supabase's static
+        // dashboard "Site URL" (which is easy to leave pointed at localhost).
+        const { data, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
         if (authError) throw authError;
         // A session means email confirmation is disabled on this project — the user is already in.
         if (!data.session) setSignupSent(true);

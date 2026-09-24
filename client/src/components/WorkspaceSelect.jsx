@@ -1,7 +1,10 @@
 import Select from 'react-select';
 
 export default function WorkspaceSelect({ workspaces, activeId, onChange, disabled }) {
-  const options = workspaces.map((ws) => ({ value: ws.id, label: ws.name }));
+  const options = workspaces.map((ws) => ({
+    value: ws.id,
+    label: ws.id === activeId ? `${ws.name} (current)` : ws.name,
+  }));
   const value = options.find((o) => o.value === activeId) || null;
 
   return (

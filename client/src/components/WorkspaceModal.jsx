@@ -37,7 +37,13 @@ export default function WorkspaceModal({ existingNames, onClose, onCreate }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="workspace-modal-title">
+      <div className="modal modal-centered" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="workspace-modal-title">
+        <div className="modal-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+            <path d="M12 11v4M10 13h4" />
+          </svg>
+        </div>
         <h2 id="workspace-modal-title">New workspace</h2>
         <form onSubmit={handleSubmit}>
           <div className="field">

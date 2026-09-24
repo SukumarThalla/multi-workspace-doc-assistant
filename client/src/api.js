@@ -38,16 +38,8 @@ export async function apiPost(path, body) {
   return res.json();
 }
 
-// Reads a text/event-stream response, calling onEvent(parsedJson) for each `data: ...` line.
-// Pass { signal } (an AbortController's signal) to let the caller cancel mid-stream.
-export async function apiPostStream(path, body, onEvent, { signal } = {}) {
-  const res = await fetch(`${API_URL}${path}`, {
-    method: 'POST',
-    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal,
-  });
-
+// Reads a text/event-stream response body, calling onEvent(parsedJson) for each `data: ...` line.
+async function readEventStream(res, onEvent) {
   if (!res.ok || !res.body) {
     await throwForStatus(res);
     return;
@@ -72,6 +64,17 @@ export async function apiPostStream(path, body, onEvent, { signal } = {}) {
   }
 }
 
+// Pass { signal } (an AbortController's signal) to let the caller cancel mid-stream.
+export async function apiPostStream(path, body, onEvent, { signal } = {}) {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  });
+  await readEventStream(res, onEvent);
+}
+
 export async function apiUpload(path, file) {
   const formData = new FormData();
   formData.append('file', file);
@@ -79,6 +82,28 @@ export async function apiUpload(path, file) {
     method: 'POST',
     headers: await authHeaders(),
     body: formData,
+  });
+  await throwForStatus(res);
+  return res.json();
+}
+
+// Same as apiUpload, but the server streams { type: 'progress', percent, ... } events while
+// the document is being chunked/embedded, ending with a { type: 'done', document } event.
+export async function apiUploadStream(path, file, onEvent) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: formData,
+  });
+  await readEventStream(res, onEvent);
+}
+
+export async function apiDelete(path) {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'DELETE',
+    headers: await authHeaders(),
   });
   await throwForStatus(res);
   return res.json();

@@ -2,7 +2,7 @@ name: Server CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [dev]
     paths:
       - 'server/**'
       - '.github/workflows/server-deploy.yml'

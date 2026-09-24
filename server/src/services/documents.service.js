@@ -40,21 +40,57 @@ async function insertChunk(workspaceId, documentId, content, embedding, chunkInd
   );
 }
 
-// Full ingestion pipeline: extract -> hash (idempotency check) -> chunk -> embed -> store.
-export async function ingestDocument(workspaceId, file) {
+// Streamed ingestion pipeline: extract -> hash (idempotency check) -> chunk -> embed each
+// chunk one at a time, yielding progress after each so the client can show a percentage.
+export async function* ingestDocumentStream(workspaceId, file) {
   const text = await extractText(file);
   const contentHash = crypto.createHash('sha256').update(text).digest('hex');
 
   const existing = await findDocumentByHash(workspaceId, contentHash);
-  if (existing) return { ...existing, deduped: true };
+  if (existing) {
+    yield { type: 'done', document: { ...existing, deduped: true } };
+    return;
+  }
 
   const document = await createDocument(workspaceId, file.originalname, contentHash);
-
   const chunks = chunkText(text);
+
   for (let i = 0; i < chunks.length; i++) {
     const embedding = await embedText(chunks[i]);
     await insertChunk(workspaceId, document.id, chunks[i], embedding, i);
+    yield {
+      type: 'progress',
+      processed: i + 1,
+      total: chunks.length,
+      percent: Math.round(((i + 1) / chunks.length) * 100),
+    };
   }
 
-  return { ...document, chunkCount: chunks.length };
+  yield { type: 'done', document: { ...document, chunkCount: chunks.length } };
+}
+
+// Chunks reference documents without ON DELETE CASCADE, so they're removed explicitly first.
+export async function deleteDocument(workspaceId, documentId) {
+  await pool.query('delete from chunks where workspace_id = $1 and document_id = $2', [workspaceId, documentId]);
+  const { rows } = await pool.query(
+    'delete from documents where workspace_id = $1 and id = $2 returning id',
+    [workspaceId, documentId]
+  );
+  return rows[0] || null;
+}
+
+// The original uploaded file isn't stored anywhere — only its chunked text is. "Viewing" a
+// document reassembles that text in order, which is what was actually indexed and searched.
+export async function getDocumentContent(workspaceId, documentId) {
+  const { rows: docRows } = await pool.query(
+    'select filename from documents where workspace_id = $1 and id = $2',
+    [workspaceId, documentId]
+  );
+  if (!docRows[0]) return null;
+
+  const { rows: chunkRows } = await pool.query(
+    'select content from chunks where workspace_id = $1 and document_id = $2 order by chunk_index',
+    [workspaceId, documentId]
+  );
+  return { filename: docRows[0].filename, content: chunkRows.map((c) => c.content).join('\n\n') };
 }

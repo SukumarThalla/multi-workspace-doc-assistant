@@ -30,4 +30,11 @@ jobs:
       - run: npm run build
 
       - name: Trigger Vercel deploy
-        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "::error::VERCEL_DEPLOY_HOOK_URL secret is not set (repo Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK_URL"

@@ -29,4 +29,11 @@ jobs:
       - run: node --check src/index.js
 
       - name: Trigger Render deploy
-        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_URL secret is not set (repo Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK_URL"

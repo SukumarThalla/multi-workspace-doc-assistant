@@ -36,9 +36,10 @@
   --bg: #f4f5f8;
   --bg-elevated: #ffffff;
   --bg-card: #ffffff;
-  --text: #4b5566;
-  --text-h: #12151c;
-  --text-dim: #737b8c;
+  --text: #1a1d24;
+  --text-h: #05070a;
+  --text-dim: #5b6272;
+  font-weight: 500;
   --border: rgba(15, 23, 42, 0.1);
   --accent: #ff9d4d;
   --accent-2: #2f6fe0;

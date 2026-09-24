@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from './supabaseClient';
-import { apiGet, apiPost, apiPostStream, apiUpload } from './api';
+import { apiGet, apiPost, apiPostStream, apiUploadStream, apiDelete } from './api';
 import { useToast } from './components/Toast';
 import { PageLoader } from './components/Spinner';
 import Spinner from './components/Spinner';
@@ -11,11 +11,15 @@ import FormattedText from './components/FormattedText';
 import ThemeToggle from './components/ThemeToggle';
 import WorkspaceSelect from './components/WorkspaceSelect';
 import WorkspaceModal from './components/WorkspaceModal';
+import DocumentViewModal from './components/DocumentViewModal';
 
 // How fast the "typewriter" reveals queued text, independent of how large the
 // chunks arriving over the network are (Gemini often sends a whole short answer
 // as one chunk, which would otherwise just pop in instead of streaming in).
 const REVEAL_INTERVAL_MS = 20;
+// Textarea grows with the content up to ~6 lines, then scrolls internally instead of
+// pushing the rest of the chat panel around.
+const MAX_COMPOSER_HEIGHT = 150;
 
 function formatTime(ts) {
   return new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -40,7 +44,10 @@ export default function Dashboard() {
   const [awaitingFirstToken, setAwaitingFirstToken] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(null);
+  const [uploadPercent, setUploadPercent] = useState(0);
   const [activityTab, setActivityTab] = useState('log');
+  const [viewingDoc, setViewingDoc] = useState(null); // { filename, content, loading }
+  const [deletingDocId, setDeletingDocId] = useState(null);
 
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(null);
@@ -53,6 +60,7 @@ export default function Dashboard() {
 
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
+  const composerRef = useRef(null);
   const abortControllerRef = useRef(null);
   const revealQueueRef = useRef('');
   const revealTimerRef = useRef(null);
@@ -169,19 +177,30 @@ export default function Dashboard() {
 
   async function processUpload(file) {
     setUploadingFile(file.name);
+    setUploadPercent(0);
     try {
-      const doc = await apiUpload(`/workspaces/${activeId}/documents`, file);
+      let finalDoc = null;
+      await apiUploadStream(`/workspaces/${activeId}/documents`, file, (event) => {
+        if (event.type === 'progress') {
+          setUploadPercent(event.percent);
+        } else if (event.type === 'done') {
+          finalDoc = event.document;
+        } else if (event.type === 'error') {
+          showToast(event.message, { type: 'error' });
+        }
+      });
       await refreshWorkspaceData(activeId);
-      if (doc.deduped) {
+      if (finalDoc?.deduped) {
         showToast(`"${file.name}" is already indexed in this workspace`, { type: 'info' });
-      } else {
-        const count = doc.chunkCount ?? 0;
+      } else if (finalDoc) {
+        const count = finalDoc.chunkCount ?? 0;
         showToast(`"${file.name}" uploaded — ${count} chunk${count === 1 ? '' : 's'} indexed`, { type: 'success' });
       }
     } catch (err) {
       showToast(err.message, { type: 'error' });
     } finally {
       setUploadingFile(null);
+      setUploadPercent(0);
     }
   }
 
@@ -196,6 +215,31 @@ export default function Dashboard() {
     setDragActive(false);
     const file = e.dataTransfer.files?.[0];
     if (file) processUpload(file);
+  }
+
+  async function viewDocument(doc) {
+    setViewingDoc({ filename: doc.filename, content: '', loading: true });
+    try {
+      const data = await apiGet(`/workspaces/${activeId}/documents/${doc.id}/content`);
+      setViewingDoc({ filename: data.filename, content: data.content, loading: false });
+    } catch (err) {
+      showToast(err.message, { type: 'error' });
+      setViewingDoc(null);
+    }
+  }
+
+  async function removeDocument(doc) {
+    if (!window.confirm(`Remove "${doc.filename}" from this workspace? This can't be undone.`)) return;
+    setDeletingDocId(doc.id);
+    try {
+      await apiDelete(`/workspaces/${activeId}/documents/${doc.id}`);
+      await refreshWorkspaceData(activeId);
+      showToast(`"${doc.filename}" removed`, { type: 'info' });
+    } catch (err) {
+      showToast(err.message, { type: 'error' });
+    } finally {
+      setDeletingDocId(null);
+    }
   }
 
   async function runChat(asked, modelOverride) {
@@ -265,8 +309,9 @@ export default function Dashboard() {
   async function sendMessage(e) {
     e.preventDefault();
     const asked = question.trim();
-    if (!asked || sending || !activeId) return;
+    if (!asked || sending || !activeId || documents.length === 0) return;
     setQuestion('');
+    if (composerRef.current) composerRef.current.style.height = 'auto';
     setMessages((prev) => [...prev, { id: `pending-${Date.now()}`, role: 'user', content: asked }]);
     await runChat(asked);
   }
@@ -290,17 +335,26 @@ export default function Dashboard() {
     }
   }
 
+  function handleComposerInput(e) {
+    setQuestion(e.target.value);
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, MAX_COMPOSER_HEIGHT)}px`;
+  }
+
   if (loadingWorkspaces) {
     return <PageLoader label="Loading your workspaces…" />;
   }
 
   const activeWorkspace = workspaces.find((w) => w.id === activeId) || null;
   const totalChunks = documents.reduce((sum, d) => sum + (d.chunk_count || 0), 0);
+  const hasDocuments = documents.length > 0;
+  const chatDisabled = !activeId || !hasDocuments;
 
   return (
     <div className="dashboard fade-in">
       <header>
-        <h1>Document Assistant</h1>
+        <h1>AI Document Assistant</h1>
         <div className="workspace-switcher">
           <WorkspaceSelect
             workspaces={sortedWorkspaces}
@@ -309,7 +363,7 @@ export default function Dashboard() {
             disabled={sortedWorkspaces.length === 0}
           />
           <button type="button" className="btn-secondary" onClick={() => setShowWorkspaceModal(true)}>
-            Add
+            Add Workspace
           </button>
         </div>
         <div className="header-actions">
@@ -323,6 +377,15 @@ export default function Dashboard() {
           existingNames={workspaces.map((w) => w.name)}
           onClose={() => setShowWorkspaceModal(false)}
           onCreate={createWorkspace}
+        />
+      )}
+
+      {viewingDoc && (
+        <DocumentViewModal
+          filename={viewingDoc.filename}
+          content={viewingDoc.content}
+          loading={viewingDoc.loading}
+          onClose={() => setViewingDoc(null)}
         />
       )}
 
@@ -371,7 +434,15 @@ export default function Dashboard() {
           </div>
 
           {uploadingFile && (
-            <div className="upload-progress"><Spinner size={14} /> Uploading {uploadingFile}…</div>
+            <div className="upload-progress">
+              <div className="upload-progress-row">
+                <Spinner size={14} />
+                <span>Processing {uploadingFile}… {uploadPercent}%</span>
+              </div>
+              <div className="upload-progress-bar">
+                <div className="upload-progress-fill" style={{ width: `${uploadPercent}%` }} />
+              </div>
+            </div>
           )}
 
           <div className="panel-scroll">
@@ -380,11 +451,26 @@ export default function Dashboard() {
             ) : documents.length === 0 ? (
               <p className="empty-hint">No documents in this workspace yet.<br />Upload one to start asking questions.</p>
             ) : (
-              <ul className="fade-list">
+              <ul className="fade-list doc-list">
                 {documents.map((doc) => (
                   <li key={doc.id}>
-                    <span className="doc-name">{doc.filename}</span>
-                    <span className="doc-meta">{doc.chunk_count ?? 0} chunks</span>
+                    <div className="doc-row-top">
+                      <span className="doc-name">{doc.filename}</span>
+                      <span className="doc-meta">{doc.chunk_count ?? 0} chunks</span>
+                    </div>
+                    <div className="doc-row-actions">
+                      <button type="button" className="link-button" onClick={() => viewDocument(doc)}>
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        className="link-button link-button-danger"
+                        onClick={() => removeDocument(doc)}
+                        disabled={deletingDocId === doc.id}
+                      >
+                        {deletingDocId === doc.id ? 'Removing…' : 'Remove'}
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -395,25 +481,28 @@ export default function Dashboard() {
         <section className="card chat-panel">
           <div className="card-header-row">
             <h2>Assistant</h2>
-            {availableModels.length > 0 && (
-              <select
-                className="model-select"
-                value={selectedModel || ''}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                title="Model used for the next question"
-              >
-                {availableModels.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            )}
             <span className="hint-text">Answers only from this workspace's documents</span>
           </div>
           <div className="chat-history">
             {messages.length === 0 && !awaitingFirstToken && !sending ? (
               <div className="chat-empty">
-                <p>Ask a question about the documents in <strong>{activeWorkspace?.name || 'No workspace yet'}</strong>.</p>
-                <p>Answers cite their sources; if the documents don't say, the assistant will tell you.</p>
+                {hasDocuments ? (
+                  <>
+                    <p>Ask a question about the documents in <strong>{activeWorkspace?.name || 'No workspace yet'}</strong>.</p>
+                    <p>Answers cite their sources; if the documents don't say, the assistant will tell you.</p>
+                  </>
+                ) : (
+                  <>
+                    <p>Upload a document to <strong>{activeWorkspace?.name || 'this workspace'}</strong> before asking questions.</p>
+                    <button type="button" className="btn-secondary" onClick={() => fileInputRef.current?.click()}>
+                      Upload a document
+                    </button>
+                  </>
+                )}
+                <p className="chat-tip">
+                  Tip: you can also ask it to act — try "save a task to buy milk by Friday" or
+                  "send a summary to Discord".
+                </p>
               </div>
             ) : (
               messages.map((m) => (
@@ -421,7 +510,7 @@ export default function Dashboard() {
                   <strong>{m.role}</strong>
                   <FormattedText text={m.content} />
                   {m.citations && m.citations.length > 0 && (
-                    <div className="citations">Sources: {m.citations.map((c) => c.filename).join(', ')}</div>
+                    <div className="citations">Source: {m.citations.map((c) => c.filename).join(', ')}</div>
                   )}
                 </div>
               ))
@@ -452,24 +541,37 @@ export default function Dashboard() {
           </div>
           <form onSubmit={sendMessage} className="chat-input-row">
             <textarea
+              ref={composerRef}
               rows={1}
-              placeholder="Ask a question about this workspace's documents"
+              placeholder={hasDocuments ? 'Ask a question about this workspace\'s documents' : 'Upload a document to start chatting'}
               value={question}
-              onChange={(e) => setQuestion(e.target.value)}
+              onChange={handleComposerInput}
               onKeyDown={handleComposerKeyDown}
-              disabled={!activeId}
+              disabled={chatDisabled}
             />
+            {availableModels.length > 0 && (
+              <select
+                className="model-select model-select-inline"
+                value={selectedModel || ''}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                title="Model used for the next question"
+                disabled={chatDisabled}
+              >
+                {availableModels.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            )}
             {sending ? (
               <button type="button" className="btn-secondary btn-cancel" onClick={cancelMessage}>
                 Cancel
               </button>
             ) : (
-              <button className="btn-primary" type="submit" disabled={!question.trim() || !activeId}>
+              <button className="btn-primary" type="submit" disabled={!question.trim() || chatDisabled}>
                 Send
               </button>
             )}
           </form>
-          <p className="composer-hint">Enter to send · Shift+Enter for a new line</p>
         </section>
 
         <section className="card activity-panel">
@@ -498,7 +600,10 @@ export default function Dashboard() {
               <Skeleton rows={3} />
             ) : activityTab === 'log' ? (
               toolCalls.length === 0 ? (
-                <p className="empty-hint">No tool calls yet.</p>
+                <p className="empty-hint">
+                  No tool calls yet. Try asking the assistant to "save a task to …" or
+                  "send a summary to Discord" — it'll show up here.
+                </p>
               ) : (
                 <ul className="activity-list">
                   {toolCalls.map((tc) => (
@@ -514,7 +619,7 @@ export default function Dashboard() {
                 </ul>
               )
             ) : tasks.length === 0 ? (
-              <p className="empty-hint">No tasks saved. Try "save a task to …".</p>
+              <p className="empty-hint">No tasks saved. Try "save a task to buy milk by Friday".</p>
             ) : (
               <ul className="activity-list">
                 {tasks.map((t) => (

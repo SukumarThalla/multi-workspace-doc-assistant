@@ -169,34 +169,54 @@ Suggested layout (adjust freely, but keep it explicit so the README can explain 
 
 ```
 multi-workspace-doc-assistant/
-├── server/                     # Express backend
+├── server/                          # Express backend
 │   ├── src/
-│   │   ├── index.js            # app entrypoint
-│   │   ├── db.js                # pg pool setup
-│   │   ├── auth/                # supabase JWT verification middleware
-│   │   ├── routes/
-│   │   │   ├── workspaces.js
-│   │   │   ├── documents.js     # upload + ingestion
-│   │   │   ├── chat.js          # RAG + tool-calling loop
-│   │   │   └── tools.js         # tool-call log endpoints
-│   │   ├── services/
-│   │   │   ├── embeddings.js    # calls Gemini embedding API
-│   │   │   ├── llm.js           # calls Gemini chat API, handles tool-calling loop
-│   │   │   ├── chunker.js       # splits text into chunks
-│   │   │   └── tools/
+│   │   ├── index.js                 # app entrypoint
+│   │   ├── config/db.js             # pg pool setup
+│   │   ├── middleware/auth.js       # Supabase JWT verification
+│   │   ├── routes/                  # thin: validate params, call a controller
+│   │   │   ├── workspaces.routes.js
+│   │   │   ├── documents.routes.js  # upload + ingestion
+│   │   │   ├── chat.routes.js       # RAG + tool-calling loop (streamed as SSE)
+│   │   │   ├── tools.routes.js      # tool-call log endpoints
+│   │   │   └── tasks.routes.js
+│   │   ├── controllers/             # request/response glue, no business logic
+│   │   │   ├── workspaces.controller.js
+│   │   │   ├── documents.controller.js
+│   │   │   ├── chat.controller.js
+│   │   │   ├── tools.controller.js
+│   │   │   └── tasks.controller.js
+│   │   ├── services/                # business logic + DB queries + external APIs
+│   │   │   ├── workspaces.service.js
+│   │   │   ├── documents.service.js # ingestion pipeline
+│   │   │   ├── chat.service.js      # RAG + tool-calling loop
+│   │   │   ├── embeddings.service.js
+│   │   │   ├── llm.service.js       # Gemini streaming chat calls
+│   │   │   ├── retrieval.service.js # workspace-scoped vector search
+│   │   │   ├── tools.service.js
+│   │   │   ├── tasks.service.js
+│   │   │   └── toolHandlers/
 │   │   │       ├── saveTask.js
 │   │   │       └── notifyDiscord.js
+│   │   ├── utils/
+│   │   │   ├── chunker.js           # splits text into chunks
+│   │   │   └── pdf.js               # PDF text extraction
 │   │   └── db/
-│   │       └── schema.sql       # table definitions incl. pgvector
+│   │       └── schema.sql           # table definitions incl. pgvector
 │   └── package.json
-├── client/                      # React (Vite) frontend
+├── client/                          # React (Vite) frontend
 │   └── src/...
 ├── .env.example
 ├── README.md
 ├── AI_NOTES.md
 ├── CLAUDE.md (or equivalent — your AI context file)
-└── LEARNING_GUIDE.md            # this file
+└── LEARNING_GUIDE.md                # this file
 ```
+
+(The step-by-step build process below still walks through the concepts in a flatter
+`routes/services` shape for simplicity — once you're comfortable with the RAG/tool-calling
+logic itself, splitting `routes` into thin `routes/` + `controllers/` + `services/` layers,
+as above, keeps each file doing one job and is what this project actually ended up using.)
 
 ---
 

@@ -17,22 +17,43 @@ even though every workspace's chunks live in one shared `chunks` table.
 
 ```
 server/src/
-  index.js            # app entrypoint, route wiring
-  db.js                # pg pool
-  auth/                # Supabase JWT verification middleware
-  routes/              # workspaces, documents (ingestion), chat (RAG + tools), tools (log)
-  services/
-    embeddings.js       # Gemini embedding calls
-    llm.js              # Gemini chat + tool-calling calls
-    chunker.js           # text -> overlapping chunks
-    retrieval.js          # workspace-scoped vector search
-    tools/                 # save_task, send_summary_to_discord
-  db/schema.sql        # table definitions incl. pgvector
+  index.js                    # app entrypoint, route wiring
+  config/db.js                 # pg pool
+  middleware/auth.js           # Supabase JWT verification
+  routes/                      # *.routes.js — one per resource, thin: params -> controller
+    workspaces.routes.js
+    documents.routes.js
+    chat.routes.js
+    tools.routes.js
+    tasks.routes.js
+  controllers/                 # *.controller.js — request/response glue, calls services
+    workspaces.controller.js
+    documents.controller.js
+    chat.controller.js
+    tools.controller.js
+    tasks.controller.js
+  services/                    # *.service.js — business logic, DB queries, external API calls
+    workspaces.service.js
+    documents.service.js       # ingestion pipeline (extract -> hash -> chunk -> embed -> store)
+    chat.service.js             # RAG + tool-calling loop, streamed as SSE
+    embeddings.service.js       # Gemini embedding calls
+    llm.service.js              # Gemini streaming chat calls
+    retrieval.service.js        # workspace-scoped vector search
+    tools.service.js            # tool-call log
+    tasks.service.js
+    toolHandlers/                # save_task, notifyDiscord — the tools the model can call
+  utils/
+    chunker.js                  # text -> overlapping chunks
+    pdf.js                       # PDF text extraction
+  db/schema.sql                # table definitions incl. pgvector
 
 client/src/
   supabaseClient.js    # Supabase auth client
-  api.js               # fetch wrapper that attaches the Supabase JWT
+  api.js               # fetch wrapper (auth headers, JSON + SSE streaming)
+  App.jsx              # routing (/login, /dashboard/:workspaceId) + auth guard
   Login.jsx / Dashboard.jsx
+  components/          # Toast, Spinner, Skeleton, TypingIndicator, FormattedText,
+                        # ThemeToggle, WorkspaceSelect, WorkspaceModal
 ```
 
 ## Local setup
@@ -109,7 +130,7 @@ _Deployed URL: TODO — fill in once deployed._
 2. Create Workspace B, upload an unrelated document.
 3. Switch to Workspace B and ask for the secret launch code — the assistant must say it doesn't know.
    If it leaks the fact, the `workspace_id` filter is missing from the retrieval query
-   (`server/src/services/retrieval.js`).
+   (`server/src/services/retrieval.service.js`).
 
 ## Requirements checklist
 

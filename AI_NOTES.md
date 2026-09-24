@@ -13,8 +13,8 @@ testing end-to-end.
 
 - **Single shared `chunks` table with a `workspace_id` column and a query-time filter** (never a
   per-workspace table), per the assignment's explicit "don't sidestep this" constraint. The filter is
-  baked into `retrieveChunks()` (`server/src/services/retrieval.js`) so there's exactly one code path
-  that can leak data, and it's the one place to audit.
+  baked into `retrieveChunks()` (`server/src/services/retrieval.service.js`) so there's exactly one
+  code path that can leak data, and it's the one place to audit.
 - **ES modules over CommonJS** for the backend, to match the frontend's module style and avoid mixing
   `require`/`import` across the codebase.
 - **Idempotent ingestion via a `(workspace_id, content_hash)` unique constraint** rather than an

@@ -598,15 +598,6 @@ select:focus {
   line-height: 150%;
 }
 
-.btn-cancel {
-  border-color: rgba(255, 107, 107, 0.4);
-  color: var(--danger);
-}
-
-.btn-cancel:hover {
-  border-color: var(--danger);
-  background: rgba(255, 107, 107, 0.08);
-}
 
 .theme-toggle {
   display: flex;
@@ -903,22 +894,6 @@ td {
 
 /* Chat panel */
 
-.model-select {
-  flex-shrink: 0;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 8px;
-  color: var(--text);
-  font-size: 11px;
-  max-width: 160px;
-}
-
-.model-select-inline {
-  max-width: 118px;
-  align-self: center;
-}
-
 .quota-banner {
   flex-shrink: 0;
   background: rgba(255, 157, 77, 0.08);
@@ -979,18 +954,84 @@ td {
   gap: 4px;
 }
 
-.chat-input-row {
+/* Composer: a single rounded box with the textarea on top and a toolbar
+   (model picker + send button) along the bottom, accent border on focus. */
+.composer {
   flex-shrink: 0;
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-items: flex-end;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 12px 10px;
+  background: var(--bg-elevated);
+  transition: border-color 0.2s;
 }
 
-.chat-input-row textarea {
-  flex: 1;
+.composer:focus-within {
+  border-color: var(--accent);
+}
+
+.composer textarea {
+  border: none;
+  background: none;
+  padding: 0;
   resize: none;
   max-height: 150px;
   overflow-y: auto;
+}
+
+.composer textarea:focus {
+  border: none;
+  outline: none;
+}
+
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.model-pill {
+  appearance: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 11px;
+  color: var(--text);
+  cursor: pointer;
+  max-width: 160px;
+}
+
+.send-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #1a0f00;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.send-btn:hover:not(:disabled) {
+  transform: scale(1.06);
+}
+
+.send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.send-btn.cancel {
+  background: var(--danger);
+  color: #fff;
 }
 
 textarea {

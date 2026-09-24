@@ -25,6 +25,22 @@ function formatTime(ts) {
   return new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+function SendIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+    </svg>
+  );
+}
+
 export default function Dashboard() {
   const showToast = useToast();
   const navigate = useNavigate();
@@ -539,7 +555,7 @@ export default function Dashboard() {
             )}
             <div ref={bottomRef} />
           </div>
-          <form onSubmit={sendMessage} className="chat-input-row">
+          <form onSubmit={sendMessage} className="composer">
             <textarea
               ref={composerRef}
               rows={1}
@@ -549,28 +565,35 @@ export default function Dashboard() {
               onKeyDown={handleComposerKeyDown}
               disabled={chatDisabled}
             />
-            {availableModels.length > 0 && (
-              <select
-                className="model-select model-select-inline"
-                value={selectedModel || ''}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                title="Model used for the next question"
-                disabled={chatDisabled}
-              >
-                {availableModels.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            )}
-            {sending ? (
-              <button type="button" className="btn-secondary btn-cancel" onClick={cancelMessage}>
-                Cancel
-              </button>
-            ) : (
-              <button className="btn-primary" type="submit" disabled={!question.trim() || chatDisabled}>
-                Send
-              </button>
-            )}
+            <div className="composer-toolbar">
+              {availableModels.length > 0 ? (
+                <select
+                  className="model-pill"
+                  value={selectedModel || ''}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  title="Model used for the next question"
+                  disabled={chatDisabled}
+                >
+                  {availableModels.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              ) : <span />}
+              {sending ? (
+                <button type="button" className="send-btn cancel" onClick={cancelMessage} aria-label="Cancel">
+                  <StopIcon />
+                </button>
+              ) : (
+                <button
+                  className="send-btn"
+                  type="submit"
+                  disabled={!question.trim() || chatDisabled}
+                  aria-label="Send"
+                >
+                  <SendIcon />
+                </button>
+              )}
+            </div>
           </form>
         </section>
 

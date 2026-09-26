@@ -12,6 +12,7 @@ import ThemeToggle from './components/ThemeToggle';
 import WorkspaceSelect from './components/WorkspaceSelect';
 import WorkspaceModal from './components/WorkspaceModal';
 import DocumentViewModal from './components/DocumentViewModal';
+import ShareDocumentModal from './components/ShareDocumentModal';
 
 // How fast the "typewriter" reveals queued text, independent of how large the
 // chunks arriving over the network are (Gemini often sends a whole short answer
@@ -72,6 +73,8 @@ export default function Dashboard() {
   const [activityTab, setActivityTab] = useState('log');
   const [viewingDoc, setViewingDoc] = useState(null); // { filename, content, loading }
   const [deletingDocId, setDeletingDocId] = useState(null);
+  const [sharedInDocs, setSharedInDocs] = useState([]);
+  const [sharingDoc, setSharingDoc] = useState(null);
 
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(null);
@@ -164,16 +167,18 @@ export default function Dashboard() {
   }, [sortedWorkspaces, routeWorkspaceId, navigate]);
 
   async function refreshWorkspaceData(id) {
-    const [docs, msgs, calls, taskRows] = await Promise.all([
+    const [docs, msgs, calls, taskRows, sharedIn] = await Promise.all([
       apiGet(`/workspaces/${id}/documents`),
       apiGet(`/workspaces/${id}/chat`),
       apiGet(`/workspaces/${id}/tool-calls`),
       apiGet(`/workspaces/${id}/tasks`),
+      apiGet(`/workspaces/${id}/documents/shared-with-me`),
     ]);
     setDocuments(docs);
     setMessages(msgs);
     setToolCalls(calls);
     setTasks(taskRows);
+    setSharedInDocs(sharedIn);
     return { docs, msgs, calls, taskRows };
   }
 
@@ -253,6 +258,11 @@ export default function Dashboard() {
     }
   }
 
+  async function shareDocument(targetWorkspaceId) {
+    const result = await apiPost(`/workspaces/${activeId}/documents/${sharingDoc.id}/share`, { targetWorkspaceId });
+    showToast(`"${sharingDoc.filename}" shared with "${result.sharedWith.name}"`, { type: 'success' });
+  }
+
   async function removeDocument(doc) {
     if (!window.confirm(`Remove "${doc.filename}" from this workspace? This can't be undone.`)) return;
     setDeletingDocId(doc.id);
@@ -276,9 +286,17 @@ export default function Dashboard() {
     const assistantMsgId = `assistant-${Date.now()}`;
     let assistantAdded = false;
     let citations = [];
+    let retrievalDebug = null;
+    let stats = null;
     let hitQuota = false;
     const controller = new AbortController();
     abortControllerRef.current = controller;
+
+    function ensureAssistantMessage() {
+      if (assistantAdded) return;
+      assistantAdded = true;
+      setMessages((prev) => [...prev, { id: assistantMsgId, role: 'assistant', content: '', citations: [] }]);
+    }
 
     try {
       await apiPostStream(
@@ -287,12 +305,11 @@ export default function Dashboard() {
         (event) => {
           if (event.type === 'citations') {
             citations = event.citations;
+          } else if (event.type === 'retrieval_debug') {
+            retrievalDebug = event;
           } else if (event.type === 'delta') {
             setAwaitingFirstToken(false);
-            if (!assistantAdded) {
-              assistantAdded = true;
-              setMessages((prev) => [...prev, { id: assistantMsgId, role: 'assistant', content: '', citations: [] }]);
-            }
+            ensureAssistantMessage();
             enqueueReveal(assistantMsgId, event.text);
           } else if (event.type === 'tool_call') {
             showToast(
@@ -306,8 +323,11 @@ export default function Dashboard() {
             setExhaustedModels((prev) => new Set(prev).add(event.model));
           } else if (event.type === 'error') {
             showToast(event.message, { type: 'error' });
+          } else if (event.type === 'stats') {
+            stats = event;
           } else if (event.type === 'done') {
-            setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, citations } : m)));
+            ensureAssistantMessage();
+            setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, citations, retrievalDebug, stats } : m)));
           }
         },
         { signal: controller.signal }
@@ -415,6 +435,16 @@ export default function Dashboard() {
         />
       )}
 
+      {sharingDoc && (
+        <ShareDocumentModal
+          doc={sharingDoc}
+          workspaces={sortedWorkspaces}
+          currentWorkspaceId={activeId}
+          onClose={() => setSharingDoc(null)}
+          onShare={shareDocument}
+        />
+      )}
+
       <div className="workspace-summary">
         <div>
           <span className="eyebrow">Active workspace</span>
@@ -491,6 +521,9 @@ export default function Dashboard() {
                       <button type="button" className="link-button" onClick={() => viewDocument(doc)}>
                         View
                       </button>
+                      <button type="button" className="link-button" onClick={() => setSharingDoc(doc)}>
+                        Share
+                      </button>
                       <button
                         type="button"
                         className="link-button link-button-danger"
@@ -503,6 +536,28 @@ export default function Dashboard() {
                   </li>
                 ))}
               </ul>
+            )}
+
+            {sharedInDocs.length > 0 && (
+              <>
+                <p className="panel-subheading">Shared with you</p>
+                <ul className="fade-list doc-list">
+                  {sharedInDocs.map((doc) => (
+                    <li key={doc.id}>
+                      <div className="doc-row-top">
+                        <span className="doc-name">{doc.filename}</span>
+                        <span className="doc-meta">{doc.chunk_count ?? 0} chunks</span>
+                      </div>
+                      <div className="doc-row-actions">
+                        <span className="doc-shared-from">from {doc.owner_workspace_name}</span>
+                        <button type="button" className="link-button" onClick={() => viewDocument(doc)}>
+                          View
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </div>
         </section>
@@ -540,6 +595,38 @@ export default function Dashboard() {
                   <FormattedText text={m.content} />
                   {m.citations && m.citations.length > 0 && (
                     <div className="citations">Source: {m.citations.map((c) => c.filename).join(', ')}</div>
+                  )}
+                  {m.stats && (
+                    <div className="msg-stats">
+                      {m.stats.latencyMs != null && <span>{(m.stats.latencyMs / 1000).toFixed(1)}s</span>}
+                      {m.stats.totalTokens != null && <span>{m.stats.totalTokens} tokens</span>}
+                    </div>
+                  )}
+                  {m.retrievalDebug && (
+                    <details className="retrieval-debug">
+                      <summary>Retrieval debug ({m.retrievalDebug.chunks.length} chunk{m.retrievalDebug.chunks.length === 1 ? '' : 's'})</summary>
+                      <div className="retrieval-debug-body">
+                        <p className="retrieval-debug-workspace">Workspace: {m.retrievalDebug.workspaceId}</p>
+                        {m.retrievalDebug.chunks.length === 0 ? (
+                          <p className="empty-hint">No chunks matched — nothing in this workspace was relevant.</p>
+                        ) : (
+                          <ul>
+                            {m.retrievalDebug.chunks.map((c, i) => (
+                              <li key={i}>
+                                <div className="retrieval-debug-chunk-top">
+                                  <strong>{c.filename}</strong>
+                                  <span className="retrieval-debug-tag">{c.source}</span>
+                                  <span className="retrieval-debug-score">
+                                    {c.source === 'vector' ? `distance ${c.score.toFixed(3)}` : `rank ${c.score.toFixed(3)}`}
+                                  </span>
+                                </div>
+                                <p className="retrieval-debug-preview">{c.preview}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </details>
                   )}
                 </div>
               ))

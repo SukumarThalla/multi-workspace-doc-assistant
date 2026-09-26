@@ -70,11 +70,11 @@ body {
 
 #root {
   width: 100%;
-  max-width: 1280px;
+  max-width: 1600px;
   height: 100%;
   margin: 0 auto;
   box-sizing: border-box;
-  padding: 24px;
+  padding: 24px 16px;
   overflow: hidden;
 }
 

@@ -709,31 +709,29 @@ export default function Dashboard() {
         </section>
 
         <section className="card activity-panel">
-          <div className="card-header-row">
-            <h2>Activity</h2>
-            <div className="tab-switch">
-              <button
-                type="button"
-                className={activityTab === 'history' ? 'tab active' : 'tab'}
-                onClick={() => setActivityTab('history')}
-              >
-                Chat History
-              </button>
-              <button
-                type="button"
-                className={activityTab === 'log' ? 'tab active' : 'tab'}
-                onClick={() => setActivityTab('log')}
-              >
-                Tool log
-              </button>
-              <button
-                type="button"
-                className={activityTab === 'tasks' ? 'tab active' : 'tab'}
-                onClick={() => setActivityTab('tasks')}
-              >
-                Tasks
-              </button>
-            </div>
+          <h2>Activity</h2>
+          <div className="tab-switch">
+            <button
+              type="button"
+              className={activityTab === 'history' ? 'tab active' : 'tab'}
+              onClick={() => setActivityTab('history')}
+            >
+              Chat History
+            </button>
+            <button
+              type="button"
+              className={activityTab === 'log' ? 'tab active' : 'tab'}
+              onClick={() => setActivityTab('log')}
+            >
+              Tool log
+            </button>
+            <button
+              type="button"
+              className={activityTab === 'tasks' ? 'tab active' : 'tab'}
+              onClick={() => setActivityTab('tasks')}
+            >
+              Tasks
+            </button>
           </div>
 
           <div className="panel-scroll">
@@ -745,21 +743,23 @@ export default function Dashboard() {
                 return exchanges.length === 0 ? (
                   <p className="empty-hint">No past questions yet in this workspace.</p>
                 ) : (
-                  <ul className="history-list">
-                    {[...exchanges].reverse().map((ex) => (
-                      <li key={ex.id}>
-                        <button
-                          type="button"
-                          className={`history-item ${viewingExchange?.id === ex.id ? 'active' : ''}`}
-                          onClick={() => setViewingExchange(ex)}
-                          title={ex.prompt}
-                        >
-                          <span className="history-item-prompt">{ex.prompt}</span>
-                          <span className="history-item-time">{formatTime(ex.createdAt)}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <span className="eyebrow">Recents</span>
+                    <ul className="history-list">
+                      {[...exchanges].reverse().map((ex) => (
+                        <li key={ex.id}>
+                          <button
+                            type="button"
+                            className={`history-item ${viewingExchange?.id === ex.id ? 'active' : ''}`}
+                            onClick={() => setViewingExchange(ex)}
+                            title={ex.prompt}
+                          >
+                            <span className="history-item-prompt">{ex.prompt}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
                 );
               })()
             ) : activityTab === 'log' ? (

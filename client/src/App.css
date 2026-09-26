@@ -374,9 +374,9 @@ select:focus {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 7, 13, 0.55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(5, 7, 13, 0.4);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
   display: flex;
   align-items: center;
   justify-content: center;

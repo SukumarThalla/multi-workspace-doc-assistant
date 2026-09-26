@@ -486,8 +486,8 @@ select:focus {
 
 .grid {
   display: grid;
-  grid-template-columns: 230px minmax(0, 1fr) 250px;
-  gap: 16px;
+  grid-template-columns: 300px minmax(0, 1fr) 320px;
+  gap: 18px;
   align-items: stretch;
   text-align: left;
   flex: 1;

@@ -23,7 +23,7 @@ export default function PasswordField({
   label,
   value,
   onChange,
-  placeholder = '••••••••',
+  placeholder = '',
   minLength,
   required,
   autoComplete,

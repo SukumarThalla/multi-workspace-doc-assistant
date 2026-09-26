@@ -1176,6 +1176,64 @@ select:disabled {
   white-space: nowrap;
 }
 
+/* Tool name badges — a distinct color per tool instead of the raw snake_case name */
+
+.tool-badge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tool-badge-save-task {
+  background: rgba(79, 140, 255, 0.15);
+  color: var(--accent-2);
+}
+
+.tool-badge-discord {
+  background: rgba(124, 108, 240, 0.15);
+  color: #8b7cf6;
+}
+
+.tool-badge-default {
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+}
+
+/* Tasks list */
+
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.task-bullet {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.task-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.task-item-body strong {
+  color: var(--text-h);
+  font-size: 13px;
+}
+
+.task-item-body .activity-time {
+  margin-left: 0;
+}
+
 /* Spinner */
 
 .spinner {

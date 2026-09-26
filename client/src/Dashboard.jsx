@@ -25,6 +25,17 @@ function formatTime(ts) {
   return new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+// Friendly label + a distinct color per tool, instead of showing the raw snake_case
+// name the model actually calls. Falls back to the raw name for any tool not listed here.
+const TOOL_BADGES = {
+  save_task: { label: 'Save Task', className: 'tool-badge-save-task' },
+  send_summary_to_discord: { label: 'Summary to Discord', className: 'tool-badge-discord' },
+};
+
+function toolBadge(toolName) {
+  return TOOL_BADGES[toolName] || { label: toolName, className: 'tool-badge-default' };
+}
+
 function UploadIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -651,26 +662,32 @@ export default function Dashboard() {
                 </p>
               ) : (
                 <ul className="activity-list">
-                  {toolCalls.map((tc) => (
-                    <li key={tc.id} className="activity-item">
-                      <div className="activity-item-top">
-                        <span className={`status-dot ${tc.status}`} />
-                        <strong>{tc.tool_name}</strong>
-                        <span className="activity-time">{formatTime(tc.created_at)}</span>
-                      </div>
-                      <div className="activity-detail" title={JSON.stringify(tc.arguments)}>{JSON.stringify(tc.arguments)}</div>
-                    </li>
-                  ))}
+                  {toolCalls.map((tc) => {
+                    const badge = toolBadge(tc.tool_name);
+                    return (
+                      <li key={tc.id} className="activity-item">
+                        <div className="activity-item-top">
+                          <span className={`status-dot ${tc.status}`} />
+                          <span className={`tool-badge ${badge.className}`}>{badge.label}</span>
+                          <span className="activity-time">{formatTime(tc.created_at)}</span>
+                        </div>
+                        <div className="activity-detail" title={JSON.stringify(tc.arguments)}>{JSON.stringify(tc.arguments)}</div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )
             ) : tasks.length === 0 ? (
               <p className="empty-hint">No tasks saved. Try "save a task to buy milk by Friday".</p>
             ) : (
-              <ul className="activity-list">
+              <ul className="activity-list task-list">
                 {tasks.map((t) => (
-                  <li key={t.id} className="activity-item">
-                    <strong>{t.title}</strong>
-                    {t.due_date && <span className="activity-time">Due {t.due_date}</span>}
+                  <li key={t.id} className="activity-item task-item">
+                    <span className="task-bullet" />
+                    <div className="task-item-body">
+                      <strong>{t.title}</strong>
+                      {t.due_date && <span className="activity-time">Due {t.due_date}</span>}
+                    </div>
                   </li>
                 ))}
               </ul>

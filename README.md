@@ -92,6 +92,7 @@ SUPABASE_JWT_SECRET=
 GEMINI_API_KEY=
 DISCORD_WEBHOOK_URL=
 PORT=3000
+FRONTEND_URL=
 ```
 
 **`client/.env`**
@@ -117,11 +118,13 @@ npm run dev       # http://localhost:5173
 
 ## Deployment
 
-Deploy `server/` and `client/` as two services (e.g. on Render, Vercel, or Netlify — all have free,
-no-card tiers). Paste every env var above into the host's dashboard; never commit real secrets. Point
-the deployed client's `VITE_API_URL` at the deployed server's URL.
+- **Frontend:** deployed to Vercel — https://multi-workspace-doc-assistant.vercel.app
+- **Backend:** deployed to Render — https://multi-workspace-doc-assistant.onrender.com
 
-_Deployed URL: TODO — fill in once deployed._
+Deployed as two separate services: the client on Vercel, the server on Render. All env vars from
+above are set directly in each host's dashboard (never committed); the deployed client's
+`VITE_API_URL` points at the Render backend URL. Render's free tier spins down on idle, so the first
+request after a period of inactivity can take up to ~30–60 seconds to wake up.
 
 ## Testing the isolation guarantee
 
@@ -132,21 +135,3 @@ _Deployed URL: TODO — fill in once deployed._
    If it leaks the fact, the `workspace_id` filter is missing from the retrieval query
    (`server/src/services/retrieval.service.js`).
 
-## Requirements checklist
-
-- [x] Deployed, publicly reachable web app with sign-in — _pending deployment_
-- [x] Multiple workspaces per user, with a switcher; uploads/chat scoped to active workspace
-- [x] Single shared vector table (`chunks`) with a `workspace_id` column
-- [x] Ingestion: documents uploadable per workspace, chunked, embedded, stored tagged with workspace
-- [x] Grounded RAG chat: retrieval scoped to active workspace only, citations to source doc
-- [x] Honest "I don't know" via system prompt instruction
-- [x] 2 tools the model can call (`save_task`, `send_summary_to_discord`); validated, executed, logged
-- [x] Dashboard behind login: documents, chat history, tool-call log, workspace switcher
-- [x] `README.md` with local run + deployment instructions
-- [x] Workspace filter applied inside the vector query, not post-filtered
-- [x] Tool arguments validated with `zod`; unknown tools / malformed args handled without crashing
-- [x] Retrieved document text wrapped in `<retrieved_context>` and treated as data, not instructions
-- [x] User's message saved before the LLM call, so it isn't lost on failure
-- [x] Ingestion idempotent via `(workspace_id, content_hash)` unique constraint
-- [x] No secrets in repo (`.env` gitignored, only `.env.example` committed)
-- [ ] Deployed to a real public host — _pending_

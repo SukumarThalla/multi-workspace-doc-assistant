@@ -8,10 +8,17 @@ export async function listWorkspacesForUser(userId) {
   return rows;
 }
 
+// Default formatting for a new workspace's name — capitalize its first letter so the
+// dashboard/dropdown look consistent regardless of how the user typed it in.
+function capitalizeFirstLetter(name) {
+  const trimmed = name.trim();
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
 export async function createWorkspace(userId, name) {
   const { rows } = await pool.query(
     'insert into workspaces (user_id, name) values ($1, $2) returning id, name, created_at',
-    [userId, name]
+    [userId, capitalizeFirstLetter(name)]
   );
   return rows[0];
 }

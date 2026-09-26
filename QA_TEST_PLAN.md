@@ -47,12 +47,28 @@ Calling"). Use this to confirm everything works once `dev` is deployed, before f
 
 | Stretch goal | Status |
 |---|---|
-| Retrieval-debug view | ❌ Not built — citations are shown per answer, but there's no dedicated "which chunks/workspace fired" debug panel |
-| Hybrid search / re-ranking | ❌ Not built — vector search only |
+| Retrieval-debug view | ✅ Done — a "Retrieval debug" disclosure under every answer shows the workspace id and each chunk used (filename, source, score, preview) |
+| Hybrid search / re-ranking | ✅ Done — vector similarity + Postgres full-text keyword search, merged and deduped (see TC21) |
 | Streaming responses | ✅ Done (SSE, token-by-token) |
 | Multi-step tool use | ✅ Done — the tool-calling loop chains up to 5 calls before answering |
-| Explicit cross-workspace sharing (opt-in) | ❌ Not built |
-| Observability (token counts, latency, tool success/failure history) | ⚠️ Partial — tool call log has status (success/failure) and timestamps; no token counts or latency numbers |
+| Explicit cross-workspace sharing (opt-in) | ✅ Done — see TC24. **Requires a DB migration, see section 0 below** |
+| Observability (token counts, latency, tool success/failure history) | ✅ Done — per-response latency + token count shown under each answer; tool call log already had status/timestamps |
+
+### ⚠️ Required before testing sharing (or any chat at all, post-deploy)
+
+Cross-workspace sharing added a new table (`document_shares`) that retrieval and document-view
+queries reference on *every* request, not just shared ones. **Run this in the Supabase SQL editor
+before testing anything on this deploy, or chat/view will fail with a SQL error:**
+
+```sql
+create table if not exists document_shares (
+  document_id uuid not null references documents(id),
+  shared_with_workspace_id uuid not null references workspaces(id),
+  created_at timestamptz default now(),
+  primary key (document_id, shared_with_workspace_id)
+);
+create index if not exists document_shares_target_idx on document_shares (shared_with_workspace_id);
+```
 
 ---
 
@@ -139,6 +155,26 @@ Run these in order against the **deployed** URL once `dev` redeploys. "Expected"
 ### TC20 — Resilience: LLM/network failure doesn't lose the question
 **Steps:** Send a message, then simulate a network drop (e.g. dev tools "offline") before the response completes.
 **Expected:** On reconnect/refresh, the user's question is still present in chat history (it was saved before the LLM call ran), even though no answer arrived.
+
+### TC21 — Hybrid search finds a name/proper-noun match
+**Steps:** In a workspace with a resume and an unrelated document (e.g. interview questions), ask "explain about \<your name>" (use the actual name in the resume).
+**Expected:** The answer is grounded in the resume, not the unrelated document — this was the exact bug hybrid search fixes.
+
+### TC22 — Retrieval debug view proves isolation
+**Steps:** Ask any document question, expand "Retrieval debug" under the answer.
+**Expected:** The workspace id shown matches the active workspace's id; every listed chunk's filename belongs to a document you uploaded into (or explicitly shared into) this workspace — never one from another workspace.
+
+### TC23 — Response stats appear
+**Steps:** Ask any question and look under the answer once it finishes.
+**Expected:** A small line shows response time in seconds and a token count.
+
+### TC24 — Cross-workspace sharing (opt-in)
+**Steps:** In Workspace A, click "Share" on a document, pick Workspace B. Switch to Workspace B, ask a question only that document can answer.
+**Expected:** A toast confirms the share; the document appears under Workspace B's "Shared with you" section with "View" working; Workspace B's assistant can now answer using it, with a citation to it.
+
+### TC25 — Sharing doesn't weaken default isolation
+**Steps:** Continuing from TC24, in Workspace B ask about a fact that only exists in a *different*, never-shared document from Workspace A (or any other workspace).
+**Expected:** Workspace B still says it doesn't know — sharing one document doesn't expose anything else.
 
 ---
 

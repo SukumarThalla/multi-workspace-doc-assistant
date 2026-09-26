@@ -1148,9 +1148,7 @@ select:disabled {
 .tab-switch {
   display: flex;
   gap: 4px;
-  background: var(--bg-elevated);
-  border-radius: 6px;
-  padding: 3px;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 14px;
   flex-shrink: 0;
 }
@@ -1158,18 +1156,19 @@ select:disabled {
 .tab {
   flex: 1;
   text-align: center;
+  white-space: nowrap;
   background: none;
   border: none;
-  padding: 6px 12px;
+  border-bottom: 2px solid transparent;
+  padding: 8px 4px;
   font-size: 12px;
-  border-radius: 4px;
   color: var(--text-dim);
-  transition: background 0.2s, color 0.2s;
+  transition: color 0.2s, border-color 0.2s;
 }
 
 .tab.active {
-  background: var(--bg-card);
   color: var(--text-h);
+  border-bottom-color: var(--accent);
 }
 
 .activity-list {

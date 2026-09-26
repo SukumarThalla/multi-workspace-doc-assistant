@@ -50,6 +50,7 @@ export default function WorkspaceModal({ existingNames, onClose, onCreate }) {
             <label htmlFor="workspace-name">Workspace name</label>
             <input
               id="workspace-name"
+              type="text"
               ref={inputRef}
               value={name}
               onChange={(e) => setName(e.target.value)}

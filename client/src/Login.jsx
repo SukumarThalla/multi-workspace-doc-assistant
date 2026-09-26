@@ -59,7 +59,7 @@ export default function Login() {
         <ThemeToggle />
         <div className="auth-card">
           <div className="brand">
-            <h1>AI Document Assistant</h1>
+            <h1>AI Doc Assistant</h1>
             <div className="accent-line" />
           </div>
           <div className="notice">
@@ -79,7 +79,7 @@ export default function Login() {
       <ThemeToggle />
       <div className="auth-card">
         <div className="brand">
-          <h1>AI Document Assistant</h1>
+          <h1>AI Doc Assistant</h1>
           <div className="accent-line" />
         </div>
         <div className="auth-mode fade-in" key={mode}>

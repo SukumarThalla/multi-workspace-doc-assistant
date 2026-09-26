@@ -81,16 +81,21 @@ export async function deleteDocument(workspaceId, documentId) {
 
 // The original uploaded file isn't stored anywhere — only its chunked text is. "Viewing" a
 // document reassembles that text in order, which is what was actually indexed and searched.
+// Visible if this workspace owns the document OR it's been explicitly shared in — matches
+// the same rule retrieval uses, so "View" works for a shared-in document too.
 export async function getDocumentContent(workspaceId, documentId) {
   const { rows: docRows } = await pool.query(
-    'select filename from documents where workspace_id = $1 and id = $2',
+    `select filename from documents
+     where id = $2
+       and (workspace_id = $1
+            or id in (select document_id from document_shares where shared_with_workspace_id = $1))`,
     [workspaceId, documentId]
   );
   if (!docRows[0]) return null;
 
   const { rows: chunkRows } = await pool.query(
-    'select content from chunks where workspace_id = $1 and document_id = $2 order by chunk_index',
-    [workspaceId, documentId]
+    'select content from chunks where document_id = $1 order by chunk_index',
+    [documentId]
   );
   return { filename: docRows[0].filename, content: chunkRows.map((c) => c.content).join('\n\n') };
 }

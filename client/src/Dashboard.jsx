@@ -380,7 +380,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard fade-in">
       <header>
-        <h1>AI Document Assistant</h1>
+        <h1>AI Doc Assistant</h1>
         <div className="workspace-switcher">
           <WorkspaceSelect
             workspaces={sortedWorkspaces}

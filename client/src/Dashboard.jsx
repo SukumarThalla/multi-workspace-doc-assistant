@@ -515,7 +515,14 @@ export default function Dashboard() {
           <div className="chat-history">
             {messages.length === 0 && !awaitingFirstToken && !sending ? (
               <div className="chat-empty">
-                {hasDocuments ? (
+                {!activeId ? (
+                  <>
+                    <p>Create a workspace to get started.</p>
+                    <button type="button" className="btn-secondary" onClick={() => setShowWorkspaceModal(true)}>
+                      Create workspace
+                    </button>
+                  </>
+                ) : hasDocuments ? (
                   <>
                     <p>Ask a question about the documents in <strong>{activeWorkspace?.name || 'No workspace yet'}</strong>.</p>
                     <p>Answers cite their sources; if the documents don't say, the assistant will tell you.</p>

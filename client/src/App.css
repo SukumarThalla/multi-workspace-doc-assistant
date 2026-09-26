@@ -1236,7 +1236,7 @@ select:disabled {
 .toast-stack {
   position: fixed;
   right: 20px;
-  bottom: 20px;
+  top: 20px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1276,7 +1276,7 @@ select:disabled {
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.98);
+    transform: translateY(-12px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -1291,6 +1291,6 @@ select:disabled {
   }
   to {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(-8px);
   }
 }

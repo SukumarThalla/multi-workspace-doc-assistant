@@ -70,7 +70,13 @@ export default function Dashboard() {
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
 
   const [documents, setDocuments] = useState([]);
-  const [messages, setMessages] = useState([]);
+  // Full chat history ever recorded for the workspace, from the database — used to build the
+  // History tab and to look up a past exchange's stored answer. The live chat pane below starts
+  // empty on every fresh visit/login and never auto-loads this, per the "fresh chat on login,
+  // browse old ones via History" requirement.
+  const [history, setHistory] = useState([]);
+  const [liveMessages, setLiveMessages] = useState([]);
+  const [viewingExchange, setViewingExchange] = useState(null); // { prompt, answer, createdAt }
   const [toolCalls, setToolCalls] = useState([]);
   const [tasks, setTasks] = useState([]);
 
@@ -80,7 +86,7 @@ export default function Dashboard() {
   const [dragActive, setDragActive] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(null);
   const [uploadPercent, setUploadPercent] = useState(0);
-  const [activityTab, setActivityTab] = useState('log');
+  const [activityTab, setActivityTab] = useState('history');
   const [viewingDoc, setViewingDoc] = useState(null); // { filename, content, loading }
   const [deletingDocId, setDeletingDocId] = useState(null);
 
@@ -122,7 +128,7 @@ export default function Dashboard() {
       const next = revealQueueRef.current.slice(0, step);
       revealQueueRef.current = revealQueueRef.current.slice(step);
       const msgId = revealMsgIdRef.current;
-      setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, content: m.content + next } : m)));
+      setLiveMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, content: m.content + next } : m)));
     }, REVEAL_INTERVAL_MS);
   }
 
@@ -182,10 +188,29 @@ export default function Dashboard() {
       apiGet(`/workspaces/${id}/tasks`),
     ]);
     setDocuments(docs);
-    setMessages(msgs);
+    setHistory(msgs);
     setToolCalls(calls);
     setTasks(taskRows);
     return { docs, msgs, calls, taskRows };
+  }
+
+  // Pairs each saved user message with the assistant reply that immediately follows it, so the
+  // History tab can list "prompt -> answer" entries instead of a flat message log. A user message
+  // with no following assistant reply yet (interrupted before a response was saved) gets `answer: null`.
+  function buildExchanges(msgs) {
+    const exchanges = [];
+    for (let i = 0; i < msgs.length; i++) {
+      const m = msgs[i];
+      if (m.role !== 'user') continue;
+      const next = msgs[i + 1];
+      exchanges.push({
+        id: m.id,
+        prompt: m.content,
+        createdAt: m.created_at,
+        answer: next && next.role === 'assistant' ? next : null,
+      });
+    }
+    return exchanges;
   }
 
   useEffect(() => {
@@ -194,6 +219,10 @@ export default function Dashboard() {
     setLoadingWorkspaceData(true);
     setFetchError(null);
     setQuotaNotice(null);
+    // Every time a workspace is loaded (first login or switching to it), the live chat pane
+    // starts fresh — past exchanges are still there, just under the History tab.
+    setLiveMessages([]);
+    setViewingExchange(null);
     refreshWorkspaceData(activeId)
       .catch((err) => { if (!cancelled) setFetchError(err.message); })
       .finally(() => { if (!cancelled) setLoadingWorkspaceData(false); });
@@ -202,7 +231,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages, awaitingFirstToken]);
+  }, [liveMessages, viewingExchange, awaitingFirstToken]);
 
   async function createWorkspace(name) {
     const ws = await apiPost('/workspaces', { name });
@@ -302,7 +331,7 @@ export default function Dashboard() {
             setAwaitingFirstToken(false);
             if (!assistantAdded) {
               assistantAdded = true;
-              setMessages((prev) => [...prev, { id: assistantMsgId, role: 'assistant', content: '', citations: [] }]);
+              setLiveMessages((prev) => [...prev, { id: assistantMsgId, role: 'assistant', content: '', citations: [] }]);
             }
             enqueueReveal(assistantMsgId, event.text);
           } else if (event.type === 'tool_call') {
@@ -318,7 +347,7 @@ export default function Dashboard() {
           } else if (event.type === 'error') {
             showToast(event.message, { type: 'error' });
           } else if (event.type === 'done') {
-            setMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, citations } : m)));
+            setLiveMessages((prev) => prev.map((m) => (m.id === assistantMsgId ? { ...m, citations } : m)));
           }
         },
         { signal: controller.signal }
@@ -349,7 +378,8 @@ export default function Dashboard() {
     if (!asked || sending || !activeId || documents.length === 0) return;
     setQuestion('');
     if (composerRef.current) composerRef.current.style.height = 'auto';
-    setMessages((prev) => [...prev, { id: `pending-${Date.now()}`, role: 'user', content: asked }]);
+    setViewingExchange(null); // typing a new question always returns to the live chat
+    setLiveMessages((prev) => [...prev, { id: `pending-${Date.now()}`, role: 'user', content: asked }]);
     await runChat(asked);
   }
 
@@ -434,7 +464,7 @@ export default function Dashboard() {
         <div className="stat-row">
           <div className="stat"><strong>{documents.length}</strong><span>Documents</span></div>
           <div className="stat"><strong>{totalChunks}</strong><span>Chunks indexed</span></div>
-          <div className="stat"><strong>{messages.length}</strong><span>Messages</span></div>
+          <div className="stat"><strong>{history.length}</strong><span>Messages</span></div>
           <div className="stat"><strong>{toolCalls.length}</strong><span>Tool calls</span></div>
         </div>
       </div>
@@ -524,7 +554,33 @@ export default function Dashboard() {
             <span className="hint-text">Answers only from this workspace's documents</span>
           </div>
           <div className="chat-history">
-            {messages.length === 0 && !awaitingFirstToken && !sending ? (
+            {viewingExchange ? (
+              <>
+                <div className="history-viewer-banner">
+                  <span>Viewing a past question · {formatTime(viewingExchange.createdAt)}</span>
+                  <button type="button" className="link-button" onClick={() => setViewingExchange(null)}>
+                    New chat
+                  </button>
+                </div>
+                <div className="chat-message user">
+                  <strong>user</strong>
+                  <FormattedText text={viewingExchange.prompt} />
+                </div>
+                {viewingExchange.answer ? (
+                  <div className="chat-message assistant">
+                    <strong>assistant</strong>
+                    <FormattedText text={viewingExchange.answer.content} />
+                    {viewingExchange.answer.citations && viewingExchange.answer.citations.length > 0 && (
+                      <div className="citations">
+                        Source: {viewingExchange.answer.citations.map((c) => c.filename).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="empty-hint">No response was recorded for this question.</p>
+                )}
+              </>
+            ) : liveMessages.length === 0 && !awaitingFirstToken && !sending ? (
               <div className="chat-empty">
                 {!activeId ? (
                   <>
@@ -534,10 +590,7 @@ export default function Dashboard() {
                     </button>
                   </>
                 ) : hasDocuments ? (
-                  <>
-                    <p>Ask a question about the documents in <strong>{activeWorkspace?.name || 'No workspace yet'}</strong>.</p>
-                    <p>Answers cite their sources; if the documents don't say, the assistant will tell you.</p>
-                  </>
+                  <p>Ask a question about the documents in <strong>{activeWorkspace?.name || 'No workspace yet'}</strong>.</p>
                 ) : (
                   <>
                     <p>Upload a document to <strong>{activeWorkspace?.name || 'this workspace'}</strong> before asking questions.</p>
@@ -546,13 +599,9 @@ export default function Dashboard() {
                     </button>
                   </>
                 )}
-                <p className="chat-tip">
-                  Tip: you can also ask it to act — try "save a task to buy milk by Friday" or
-                  "send a summary to Discord".
-                </p>
               </div>
             ) : (
-              messages.map((m) => (
+              liveMessages.map((m) => (
                 <div key={m.id} className={`chat-message ${m.role}`}>
                   <strong>{m.role}</strong>
                   <FormattedText text={m.content} />
@@ -562,8 +611,8 @@ export default function Dashboard() {
                 </div>
               ))
             )}
-            {awaitingFirstToken && <TypingIndicator />}
-            {quotaNotice && (
+            {!viewingExchange && awaitingFirstToken && <TypingIndicator />}
+            {!viewingExchange && quotaNotice && (
               <div className="quota-banner">
                 <p>
                   <strong>{quotaNotice.model}</strong> has hit its free-tier daily limit. Resets{' '}
@@ -636,6 +685,13 @@ export default function Dashboard() {
             <div className="tab-switch">
               <button
                 type="button"
+                className={activityTab === 'history' ? 'tab active' : 'tab'}
+                onClick={() => setActivityTab('history')}
+              >
+                History
+              </button>
+              <button
+                type="button"
                 className={activityTab === 'log' ? 'tab active' : 'tab'}
                 onClick={() => setActivityTab('log')}
               >
@@ -654,6 +710,28 @@ export default function Dashboard() {
           <div className="panel-scroll">
             {loadingWorkspaceData ? (
               <Skeleton rows={3} />
+            ) : activityTab === 'history' ? (
+              (() => {
+                const exchanges = buildExchanges(history);
+                return exchanges.length === 0 ? (
+                  <p className="empty-hint">No past questions yet in this workspace.</p>
+                ) : (
+                  <ul className="history-list">
+                    {[...exchanges].reverse().map((ex) => (
+                      <li key={ex.id}>
+                        <button
+                          type="button"
+                          className={`history-item ${viewingExchange?.id === ex.id ? 'active' : ''}`}
+                          onClick={() => setViewingExchange(ex)}
+                          title={ex.prompt}
+                        >
+                          {ex.prompt}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()
             ) : activityTab === 'log' ? (
               toolCalls.length === 0 ? (
                 <p className="empty-hint">

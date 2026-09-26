@@ -60,6 +60,15 @@ function StopIcon() {
   );
 }
 
+function NewChatIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
 export default function Dashboard() {
   const showToast = useToast();
   const navigate = useNavigate();
@@ -395,6 +404,14 @@ export default function Dashboard() {
     abortControllerRef.current?.abort();
   }
 
+  // Resets the chat pane back to a blank slate — nothing is lost, the cleared messages are
+  // already saved and stay reachable under the Chat History tab.
+  function startNewChat() {
+    stopReveal();
+    setViewingExchange(null);
+    setLiveMessages([]);
+  }
+
   function handleComposerKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -551,14 +568,26 @@ export default function Dashboard() {
         <section className="card chat-panel">
           <div className="card-header-row">
             <h2>Assistant</h2>
-            <span className="hint-text">Answers only from this workspace's documents</span>
+            <div className="chat-header-actions">
+              <span className="hint-text">Answers only from this workspace's documents</span>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={startNewChat}
+                disabled={sending || (!viewingExchange && liveMessages.length === 0)}
+                title="Start a new chat"
+                aria-label="Start a new chat"
+              >
+                <NewChatIcon />
+              </button>
+            </div>
           </div>
           <div className="chat-history">
             {viewingExchange ? (
               <>
                 <div className="history-viewer-banner">
                   <span>Viewing a past question · {formatTime(viewingExchange.createdAt)}</span>
-                  <button type="button" className="link-button" onClick={() => setViewingExchange(null)}>
+                  <button type="button" className="link-button" onClick={startNewChat}>
                     New chat
                   </button>
                 </div>
@@ -688,7 +717,7 @@ export default function Dashboard() {
                 className={activityTab === 'history' ? 'tab active' : 'tab'}
                 onClick={() => setActivityTab('history')}
               >
-                History
+                Chat History
               </button>
               <button
                 type="button"
@@ -725,7 +754,8 @@ export default function Dashboard() {
                           onClick={() => setViewingExchange(ex)}
                           title={ex.prompt}
                         >
-                          {ex.prompt}
+                          <span className="history-item-prompt">{ex.prompt}</span>
+                          <span className="history-item-time">{formatTime(ex.createdAt)}</span>
                         </button>
                       </li>
                     ))}

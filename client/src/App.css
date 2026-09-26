@@ -772,6 +772,37 @@ td {
   text-align: right;
 }
 
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--bg-elevated);
+  color: var(--text-h);
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Documents panel */
 
 .dropzone {
@@ -949,11 +980,18 @@ td {
   color: var(--text-h);
 }
 
-.chat-tip {
-  margin-top: 10px;
+.history-viewer-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   font-size: 12px;
   color: var(--text-dim);
-  max-width: 380px;
 }
 
 .chat-message {
@@ -1110,24 +1148,27 @@ select:disabled {
 .tab-switch {
   display: flex;
   gap: 4px;
-  background: var(--bg-elevated);
-  border-radius: 6px;
-  padding: 3px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+  flex-shrink: 0;
 }
 
 .tab {
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
   background: none;
   border: none;
-  padding: 6px 12px;
+  border-bottom: 2px solid transparent;
+  padding: 8px 4px;
   font-size: 12px;
-  border-radius: 4px;
   color: var(--text-dim);
-  transition: background 0.2s, color 0.2s;
+  transition: color 0.2s, border-color 0.2s;
 }
 
 .tab.active {
-  background: var(--bg-card);
   color: var(--text-h);
+  border-bottom-color: var(--accent);
 }
 
 .activity-list {
@@ -1232,6 +1273,49 @@ select:disabled {
 
 .task-item-body .activity-time {
   margin-left: 0;
+}
+
+/* Chat history list (Activity → History tab) */
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.history-item-prompt {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-item:hover {
+  background: var(--bg-elevated);
+}
+
+.history-item.active {
+  background: var(--accent-bg);
+  color: var(--text-h);
+  font-weight: 600;
 }
 
 /* Spinner */

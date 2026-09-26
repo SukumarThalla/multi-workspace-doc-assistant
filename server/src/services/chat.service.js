@@ -20,9 +20,13 @@ Never include filenames or citation markers like [file.pdf] anywhere in your ans
 lists the source documents separately underneath your answer, so repeating them yourself is redundant.
 
 Format every answer for readability:
-- Start with one short sentence that directly answers the question.
-- If there is more than one relevant detail, list them as bullet points, one per line, each starting with "- ".
-- Keep each bullet short and specific. Do not write long single-paragraph answers when the content has multiple distinct points.`;
+- If the answer is a single fact, name, date, or short phrase, just write it as one plain
+  sentence — do NOT wrap a single point in a bullet list.
+- If the answer genuinely has multiple distinct items — e.g. a list of skills, responsibilities,
+  steps, features, requirements, or several separate facts — start with one short sentence, then
+  list each item as its own bullet point, one per line, each starting with "- ". Do not run
+  multiple distinct items together into one paragraph.
+- Keep each bullet short and specific.`;
 
 const MAX_CHAINED_TOOL_CALLS = 5;
 

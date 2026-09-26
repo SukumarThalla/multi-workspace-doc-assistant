@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { supabase } from './supabaseClient';
-import ThemeToggle from './components/ThemeToggle';
-import PasswordField from './components/PasswordField';
+import { supabase } from '../lib/supabaseClient';
+import ThemeToggle from '../components/common/ThemeToggle';
+import PasswordField from '../components/common/PasswordField';
 
 export default function Login() {
   const [email, setEmail] = useState('');

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './supabaseClient';
-import Login from './Login';
-import Dashboard from './Dashboard';
-import { ToastProvider } from './components/Toast';
-import { PageLoader } from './components/Spinner';
+import { supabase } from './lib/supabaseClient';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import { ToastProvider } from './components/common/Toast';
+import { PageLoader } from './components/common/Spinner';
 import './App.css';
 
 export default function App() {

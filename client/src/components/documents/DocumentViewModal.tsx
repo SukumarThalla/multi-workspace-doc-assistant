@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import Spinner from './Spinner';
+import Spinner from '../common/Spinner';
 
 // Shows the reassembled text of a document (there's no original file stored — only its
 // chunked text — so this is exactly what retrieval actually searches over).

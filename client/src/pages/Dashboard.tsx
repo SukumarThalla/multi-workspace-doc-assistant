@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { supabase } from './supabaseClient';
-import { apiGet, apiPost, apiPostStream, apiUploadStream, apiDelete } from './api';
-import { useToast } from './components/Toast';
-import { PageLoader } from './components/Spinner';
-import Spinner from './components/Spinner';
-import Skeleton from './components/Skeleton';
-import TypingIndicator from './components/TypingIndicator';
-import FormattedText from './components/FormattedText';
-import ThemeToggle from './components/ThemeToggle';
-import WorkspaceSelect from './components/WorkspaceSelect';
-import WorkspaceModal from './components/WorkspaceModal';
-import DocumentViewModal from './components/DocumentViewModal';
+import { supabase } from '../lib/supabaseClient';
+import { apiGet, apiPost, apiPostStream, apiUploadStream, apiDelete } from '../https/fetch';
+import { useToast } from '../components/common/Toast';
+import { PageLoader } from '../components/common/Spinner';
+import Spinner from '../components/common/Spinner';
+import Skeleton from '../components/common/Skeleton';
+import TypingIndicator from '../components/common/TypingIndicator';
+import FormattedText from '../components/common/FormattedText';
+import ThemeToggle from '../components/common/ThemeToggle';
+import WorkspaceSelect from '../components/workspace/WorkspaceSelect';
+import WorkspaceModal from '../components/workspace/WorkspaceModal';
+import DocumentViewModal from '../components/documents/DocumentViewModal';
 
 // How fast the "typewriter" reveals queued text, independent of how large the
 // chunks arriving over the network are (Gemini often sends a whole short answer

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import Spinner from './Spinner';
+import Spinner from '../common/Spinner';
 
 // existingNames: workspace names already taken by this user, so we can catch a
 // duplicate before it ever reaches the server (case-insensitive).

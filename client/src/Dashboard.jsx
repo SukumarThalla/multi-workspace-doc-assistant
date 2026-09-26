@@ -68,6 +68,7 @@ export default function Dashboard() {
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(null);
   const [quotaNotice, setQuotaNotice] = useState(null); // { model, resetsAt, availableModels }
+  const [exhaustedModels, setExhaustedModels] = useState(() => new Set());
   const lastQuestionRef = useRef(null);
 
   const [loadingWorkspaces, setLoadingWorkspaces] = useState(true);
@@ -294,6 +295,7 @@ export default function Dashboard() {
             hitQuota = true;
             setAwaitingFirstToken(false);
             setQuotaNotice(event);
+            setExhaustedModels((prev) => new Set(prev).add(event.model));
           } else if (event.type === 'error') {
             showToast(event.message, { type: 'error' });
           } else if (event.type === 'done') {
@@ -575,7 +577,9 @@ export default function Dashboard() {
                   disabled={chatDisabled}
                 >
                   {availableModels.map((m) => (
-                    <option key={m} value={m}>{m}</option>
+                    <option key={m} value={m} disabled={exhaustedModels.has(m)}>
+                      {exhaustedModels.has(m) ? `${m} (limit reached)` : m}
+                    </option>
                   ))}
                 </select>
               ) : <span />}

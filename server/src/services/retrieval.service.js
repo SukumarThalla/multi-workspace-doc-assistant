@@ -25,19 +25,13 @@ function buildOrTsQuery(text) {
   return words.join(' | ');
 }
 
-// A chunk is visible to a workspace if it's the chunk's own workspace, OR its document has
-// been explicitly shared into this workspace (opt-in, via document_shares) — nothing is
-// visible across workspaces unless that row exists, so default isolation is unaffected.
-const VISIBILITY_CLAUSE = `(c.workspace_id = $__WS__
-  or d.id in (select document_id from document_shares where shared_with_workspace_id = $__WS__))`;
-
 async function vectorSearch(workspaceId, questionEmbedding, topK) {
   const { rows } = await pool.query(
     `select c.id as chunk_id, c.content, c.chunk_index, d.id as document_id, d.filename,
             c.embedding <=> $1 as distance
      from chunks c
      join documents d on d.id = c.document_id
-     where ${VISIBILITY_CLAUSE.replaceAll('$__WS__', '$2')}
+     where c.workspace_id = $2
      order by distance
      limit $3`,
     [JSON.stringify(questionEmbedding), workspaceId, topK]
@@ -54,7 +48,7 @@ async function keywordSearch(workspaceId, tsQuery, limit) {
             ts_rank(to_tsvector('english', c.content), to_tsquery('english', $2)) as rank
      from chunks c
      join documents d on d.id = c.document_id
-     where ${VISIBILITY_CLAUSE.replaceAll('$__WS__', '$1')}
+     where c.workspace_id = $1
        and to_tsvector('english', c.content) @@ to_tsquery('english', $2)
      order by rank desc
      limit $3`,

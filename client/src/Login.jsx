@@ -90,7 +90,7 @@ export default function Login() {
               <input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="Enter Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
@@ -100,6 +100,7 @@ export default function Login() {
             <PasswordField
               id="password"
               label="Password"
+              placeholder="Enter Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               minLength={6}
@@ -110,6 +111,7 @@ export default function Login() {
               <PasswordField
                 id="confirm-password"
                 label="Confirm password"
+                placeholder="Confirm Password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 minLength={6}

@@ -87,14 +87,26 @@ async function logToolCall(workspaceId, toolName, args, result, status) {
   );
 }
 
+// A short, non-sensitive preview of a chunk's text for the retrieval-debug view — long enough
+// to recognize the source, short enough not to just dump the whole document into the UI.
+function previewOf(content) {
+  return content.length > 160 ? `${content.slice(0, 160)}…` : content;
+}
+
 // Save the user's message before touching the LLM, so it's never lost if the call fails.
 // Yields streamed events for the caller to forward to the client as they happen:
 //   { type: 'citations', citations }
+//   { type: 'retrieval_debug', workspaceId, chunks }   -- proves isolation: which chunks/workspace fed this answer
 //   { type: 'delta', text }            -- one per token/chunk of the final answer
 //   { type: 'tool_call', name, status, result }
 //   { type: 'quota_exceeded', model, resetsAt, availableModels }  -- caller should offer a model switch
+//   { type: 'stats', latencyMs, firstTokenMs, promptTokens, responseTokens, totalTokens }
 //   { type: 'done' }
 export async function* sendMessageStream(workspaceId, message, model = DEFAULT_MODEL) {
+  const startedAt = Date.now();
+  let firstTokenAt = null;
+  let usage = null;
+
   await saveMessage(workspaceId, 'user', message);
 
   if (isGreeting(message)) {
@@ -105,8 +117,11 @@ export async function* sendMessageStream(workspaceId, message, model = DEFAULT_M
     try {
       for await (const event of streamGenerateContent({ model, systemInstruction: GREETING_SYSTEM_PROMPT, contents })) {
         if (event.type === 'text') {
+          if (firstTokenAt === null) firstTokenAt = Date.now();
           greetingText += event.text;
           yield { type: 'delta', text: event.text };
+        } else if (event.type === 'usage') {
+          usage = event;
         }
       }
     } catch (err) {
@@ -123,6 +138,14 @@ export async function* sendMessageStream(workspaceId, message, model = DEFAULT_M
     }
 
     await saveMessage(workspaceId, 'assistant', greetingText, []);
+    yield {
+      type: 'stats',
+      latencyMs: Date.now() - startedAt,
+      firstTokenMs: firstTokenAt ? firstTokenAt - startedAt : null,
+      promptTokens: usage?.promptTokens ?? null,
+      responseTokens: usage?.responseTokens ?? null,
+      totalTokens: usage?.totalTokens ?? null,
+    };
     yield { type: 'done' };
     return;
   }
@@ -130,6 +153,17 @@ export async function* sendMessageStream(workspaceId, message, model = DEFAULT_M
   const chunks = await retrieveChunks(workspaceId, message);
   const citations = dedupeCitations(chunks);
   yield { type: 'citations', citations };
+  yield {
+    type: 'retrieval_debug',
+    workspaceId,
+    chunks: chunks.map((c) => ({
+      filename: c.filename,
+      chunkIndex: c.chunk_index,
+      source: c.source,
+      score: c.score,
+      preview: previewOf(c.content),
+    })),
+  };
 
   const contextBlock = buildContextBlock(chunks);
   const contents = [{ role: 'user', parts: [{ text: `${contextBlock}\n\nUser question: ${message}` }] }];
@@ -149,6 +183,11 @@ export async function* sendMessageStream(workspaceId, message, model = DEFAULT_M
           toolCall = event;
           break;
         }
+        if (event.type === 'usage') {
+          usage = event;
+          continue;
+        }
+        if (firstTokenAt === null) firstTokenAt = Date.now();
         fullText += event.text;
         yield { type: 'delta', text: event.text };
       }
@@ -204,5 +243,13 @@ export async function* sendMessageStream(workspaceId, message, model = DEFAULT_M
   }
 
   await saveMessage(workspaceId, 'assistant', fullText, citations);
+  yield {
+    type: 'stats',
+    latencyMs: Date.now() - startedAt,
+    firstTokenMs: firstTokenAt ? firstTokenAt - startedAt : null,
+    promptTokens: usage?.promptTokens ?? null,
+    responseTokens: usage?.responseTokens ?? null,
+    totalTokens: usage?.totalTokens ?? null,
+  };
   yield { type: 'done' };
 }

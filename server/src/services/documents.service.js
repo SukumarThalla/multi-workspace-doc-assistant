@@ -81,16 +81,75 @@ export async function deleteDocument(workspaceId, documentId) {
 
 // The original uploaded file isn't stored anywhere — only its chunked text is. "Viewing" a
 // document reassembles that text in order, which is what was actually indexed and searched.
+// Visible if this workspace owns the document OR it's been explicitly shared in — matches
+// the same rule retrieval uses, so "View" works for a shared-in document too.
 export async function getDocumentContent(workspaceId, documentId) {
   const { rows: docRows } = await pool.query(
-    'select filename from documents where workspace_id = $1 and id = $2',
+    `select filename from documents
+     where id = $2
+       and (workspace_id = $1
+            or id in (select document_id from document_shares where shared_with_workspace_id = $1))`,
     [workspaceId, documentId]
   );
   if (!docRows[0]) return null;
 
   const { rows: chunkRows } = await pool.query(
-    'select content from chunks where workspace_id = $1 and document_id = $2 order by chunk_index',
-    [workspaceId, documentId]
+    'select content from chunks where document_id = $1 order by chunk_index',
+    [documentId]
   );
   return { filename: docRows[0].filename, content: chunkRows.map((c) => c.content).join('\n\n') };
+}
+
+// Opt-in cross-workspace sharing — see document_shares in schema.sql. Only a document that
+// actually belongs to `workspaceId` can be shared from it, so a workspace can't grant access
+// to something it doesn't own.
+export async function shareDocument(workspaceId, documentId, targetWorkspaceId) {
+  const owned = await pool.query('select id from documents where id = $1 and workspace_id = $2', [
+    documentId,
+    workspaceId,
+  ]);
+  if (!owned.rows[0]) return null;
+
+  await pool.query(
+    'insert into document_shares (document_id, shared_with_workspace_id) values ($1, $2) on conflict do nothing',
+    [documentId, targetWorkspaceId]
+  );
+  return { documentId, targetWorkspaceId };
+}
+
+export async function unshareDocument(documentId, targetWorkspaceId) {
+  await pool.query('delete from document_shares where document_id = $1 and shared_with_workspace_id = $2', [
+    documentId,
+    targetWorkspaceId,
+  ]);
+}
+
+export async function listDocumentShares(documentId) {
+  const { rows } = await pool.query(
+    `select w.id as workspace_id, w.name
+     from document_shares ds
+     join workspaces w on w.id = ds.shared_with_workspace_id
+     where ds.document_id = $1
+     order by w.name`,
+    [documentId]
+  );
+  return rows;
+}
+
+// Documents shared INTO this workspace from elsewhere — shown separately from the
+// workspace's own uploads so it's always clear a document isn't natively yours.
+export async function listSharedInDocuments(workspaceId) {
+  const { rows } = await pool.query(
+    `select d.id, d.filename, w.id as owner_workspace_id, w.name as owner_workspace_name,
+            count(c.id)::int as chunk_count
+     from document_shares ds
+     join documents d on d.id = ds.document_id
+     join workspaces w on w.id = d.workspace_id
+     left join chunks c on c.document_id = d.id
+     where ds.shared_with_workspace_id = $1
+     group by d.id, w.id
+     order by d.created_at`,
+    [workspaceId]
+  );
+  return rows;
 }

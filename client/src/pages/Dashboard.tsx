@@ -709,7 +709,6 @@ export default function Dashboard() {
         </section>
 
         <section className="card activity-panel">
-          <h2>Activity</h2>
           <div className="tab-switch">
             <button
               type="button"

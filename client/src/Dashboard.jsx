@@ -484,7 +484,7 @@ export default function Dashboard() {
                 {documents.map((doc) => (
                   <li key={doc.id}>
                     <div className="doc-row-top">
-                      <span className="doc-name">{doc.filename}</span>
+                      <span className="doc-name" title={doc.filename}>{doc.filename}</span>
                       <span className="doc-meta">{doc.chunk_count ?? 0} chunks</span>
                     </div>
                     <div className="doc-row-actions">
@@ -658,7 +658,7 @@ export default function Dashboard() {
                         <strong>{tc.tool_name}</strong>
                         <span className="activity-time">{formatTime(tc.created_at)}</span>
                       </div>
-                      <div className="activity-detail">{JSON.stringify(tc.arguments)}</div>
+                      <div className="activity-detail" title={JSON.stringify(tc.arguments)}>{JSON.stringify(tc.arguments)}</div>
                     </li>
                   ))}
                 </ul>

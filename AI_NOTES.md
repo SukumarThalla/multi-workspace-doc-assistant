@@ -16,9 +16,9 @@ verified the result against the deployed app.
 
 ## AI context files
 
-A local `CLAUDE.md` (project conventions and non-negotiable invariants — workspace-filter rules, tool
-validation, idempotent ingestion) guided the backend work during development. It's kept outside this
-repository and isn't included in this submission.
+`CLAUDE.md` (repo root) is the project conventions/instruction file used throughout development — it
+captures the non-negotiable invariants (workspace-filter rules, tool validation, idempotent ingestion)
+that guided every change. Committed as-is, per deliverable #5.
 
 ## 2–3 key decisions
 

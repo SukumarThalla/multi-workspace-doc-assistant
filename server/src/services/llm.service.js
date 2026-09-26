@@ -92,6 +92,16 @@ export async function* streamGenerateContent({ model = DEFAULT_MODEL, systemInst
           yield { type: 'text', text: part.text };
         }
       }
+      // Gemini reports cumulative token usage as the stream progresses — the caller only
+      // needs to keep the latest one it sees, which will be the final total by stream end.
+      if (parsed.usageMetadata) {
+        yield {
+          type: 'usage',
+          promptTokens: parsed.usageMetadata.promptTokenCount ?? null,
+          responseTokens: parsed.usageMetadata.candidatesTokenCount ?? null,
+          totalTokens: parsed.usageMetadata.totalTokenCount ?? null,
+        };
+      }
     }
   }
 }

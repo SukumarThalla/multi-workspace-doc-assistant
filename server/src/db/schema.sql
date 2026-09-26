@@ -60,3 +60,14 @@ create table if not exists tool_calls (
   created_at timestamptz default now()
 );
 create index if not exists tool_calls_workspace_idx on tool_calls (workspace_id);
+
+-- Opt-in cross-workspace sharing. A document's chunks stay tagged with their OWN workspace_id
+-- (isolation is unchanged by default); a row here explicitly grants one other workspace read
+-- access to that document during retrieval. Nothing is shared unless a row exists.
+create table if not exists document_shares (
+  document_id uuid not null references documents(id),
+  shared_with_workspace_id uuid not null references workspaces(id),
+  created_at timestamptz default now(),
+  primary key (document_id, shared_with_workspace_id)
+);
+create index if not exists document_shares_target_idx on document_shares (shared_with_workspace_id);
